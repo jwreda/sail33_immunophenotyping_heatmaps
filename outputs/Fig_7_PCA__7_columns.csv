@@ -1,0 +1,18 @@
+column_names
+experiment
+organ
+mouse_id
+treatment
+sample
+scdLN_flow_KLRG1+ GATA3+ Thy1.2+ Lineage- (% of CD45+) 
+scdLN_flow_CD25+ KLRG1+ GATA3+ Thy1.2+ Lineage- (% of CD45+) 
+scdLN_flow_FoxP3+ CD25+ (% of CD4+ CD3+ CD45+) 
+scdLN_flow_CTLA-4+ (% of FoxP3+ CD25+ CD4+ CD3+ CD45+)
+scdLN_flow_GATA3+ FoxP3- (% of CD4+ CD3+ CD45+) 
+scdLN_flow_Arg-1+ (% of CD11b+ F4/80+ CD45+) 
+scdLN_flow_CD86+ (% of CD11b+ F4/80+ CD45+) 
+scdLN_flow_CD11c+ MHC IIhigh F4/80- CD45+ (% of Live) 
+scdLN_flow_CD11b+ CD11c+ MHC IIhigh F4/80- CD45+ (% of Live) 
+scdLN_flow_CD86+ (% of CD11b+ CD11c+ MHC IIhigh F4/80- CD45+) 
+scdLN_flow_CD86+ (% of CD11c+ MHC IIhigh F4/80- CD45+) 
+scdLN_flow_PD-L1+ (% of CD11b+ F4/80+ CD45+) 

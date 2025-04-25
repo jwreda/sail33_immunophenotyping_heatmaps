@@ -1,0 +1,16 @@
+column_names
+experiment
+organ
+mouse_id
+treatment
+sample
+SC_flow_CD45+ (% of Live Cells) 
+SC_flow_CD4+ CD3+ (% of CD45+) 
+SC_flow_RORγt+ CD4+ CD3+ (% of CD45+) 
+SC_flow_CD8+ CD3+ (% of CD45+)
+SC_flow_CD11b+ F4/80+ (% of CD45+)
+SC_flow_CD86+ CD11b+ F4/80+ (% of CD45+)
+SC_flow_CD206+ CD11b+ F4/80+ (% of CD45+)
+SC_flow_CD11c+ MHC IIhigh F4/80- (% of CD45+) 
+SC_flow_CD11b+ CD11c+ MHC IIhigh F4/80- (% of CD45+) 
+SC_flow_CD11b+ CD11c- F4/80- (% of CD45+) 

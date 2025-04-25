@@ -1,0 +1,30 @@
+column_names
+experiment
+organ
+mouse_id
+treatment
+sample
+scdLN_restim_IFN-γ (pg/mL)
+scdLN_restim_IL-5 (pg/mL)
+scdLN_restim_TNF-α (pg/mL) 
+scdLN_restim_IL-2 (pg/mL) 
+scdLN_restim_IL-6 (pg/mL) 
+scdLN_restim_IL-4 (pg/mL) 
+scdLN_restim_IL-10 (pg/mL) 
+scdLN_restim_IL-9 (pg/mL)
+scdLN_restim_IL-17A (pg/mL)
+scdLN_restim_IL-17F (pg/mL)
+scdLN_restim_IL-22 (pg/mL)
+scdLN_restim_IL-13 (pg/mL)
+spleen_restim_IFN-γ (pg/mL)
+spleen_restim_IL-5 (pg/mL)
+spleen_restim_TNF-α (pg/mL) 
+spleen_restim_IL-2 (pg/mL) 
+spleen_restim_IL-6 (pg/mL) 
+spleen_restim_IL-4 (pg/mL) 
+spleen_restim_IL-10 (pg/mL) 
+spleen_restim_IL-9 (pg/mL)
+spleen_restim_IL-17A (pg/mL)
+spleen_restim_IL-17F (pg/mL)
+spleen_restim_IL-22 (pg/mL)
+spleen_restim_IL-13 (pg/mL)

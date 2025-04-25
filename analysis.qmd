@@ -1,0 +1,405 @@
+---
+title: "Heatmap & PCA Analysis for Erica Budina"
+author: "Joe Reda"
+date: "2025-02-13"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    css: styles.css
+    theme: darkly
+echo: false
+---
+
+## Setup
+
+```{r packages-setup}
+# Install and load the required packages
+if (!requireNamespace("pacman", quietly = TRUE)) {
+  install.packages("pacman")
+}
+
+pacman::p_load(
+  tidyr,
+  dplyr,
+  readr,
+  readxl,
+  ComplexHeatmap,
+  circlize,
+  here,
+  ggplot2,
+  stringr,
+  svglite
+)
+
+
+# Set the seed for reproducibility
+set.seed(123
+)
+```
+
+## Load Data
+```{r load-data}
+# Specify the path to the Excel file and list its sheets
+path <- here::here("inputs", "input.xlsx")
+sheets <- readxl::excel_sheets(path)
+
+# Load each sheet as a data frame with cleaned column names
+data_list <- lapply(sheets, function(sheet) {
+  df <- readxl::read_excel(path, sheet = sheet)
+  # colnames(df) <- custom_clean_names(colnames(df))
+  df
+})
+names(data_list) <- sheets
+
+# Export column names as CSV files for reference
+output_dir <- here::here("outputs")
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir, recursive = TRUE)
+}
+sanitize_sheet_name <- function(name) {
+  gsub("[^A-Za-z0-9]", "_", name)
+}
+lapply(names(data_list), function(sheet) {
+  cols <- data.frame(column_names = colnames(data_list[[sheet]]))
+  safe_sheet <- sanitize_sheet_name(sheet)
+  output_path <- file.path(output_dir, paste0(safe_sheet, "_columns.csv"))
+  write_csv(cols, output_path)
+  message("Exported column names for sheet '", sheet, "' to ", output_path)
+})
+```
+
+## Preprocess Data
+
+```{r preprocess-data}
+# Define metadata columns (adjust as needed)
+metadata_cols <- c("experiment", "experiment_id", "mouse", "mouse_id", 
+                     "organ", "group", "condition")
+
+processed_data <- lapply(data_list, function(df) {
+  df2 <- df %>%
+    filter(treatment %in% c("PBS", "FTY 720","SA IL-33")) %>%
+    # filter(experiment %in% c("11")) %>%
+    mutate(treatment = factor(treatment,
+                              levels = c("PBS", "FTY 720","SA IL-33")))
+    # 
+  df2 <- df2 %>% 
+    mutate(across(any_of(metadata_cols), as.factor))
+  
+  # Separate numeric data (dropping metadata columns)
+  numeric_data <- df2 %>%
+    dplyr::select(where(is.numeric), -any_of(metadata_cols))
+  
+  # Standardize the numeric columns
+  if (ncol(numeric_data) > 0) {
+    numeric_data <- scale(numeric_data) %>% as.data.frame()
+  }
+  
+  # Retain the metadata
+  metadata <- df2 %>% 
+    dplyr::select(any_of(metadata_cols), where(is.character), where(is.factor))
+  
+  if (nrow(metadata) != nrow(numeric_data)) {
+    stop("Mismatch in rows between metadata and numeric data.")
+  }
+  
+  list(metadata = metadata, numeric_data = numeric_data)
+})
+```
+
+### Clean Numeric Data for PCA/Correlation
+
+```{r pca-cleaning}
+processed_data_clean <- lapply(processed_data, function(pd) {
+  numeric_data <- pd$numeric_data
+  
+  # Remove rows with any NA/Inf values
+  good_rows <- complete.cases(numeric_data)
+  numeric_data <- numeric_data[good_rows, , drop = FALSE]
+  
+  # Remove zero-variance columns (keep this check)
+  if (ncol(numeric_data) > 0) {
+    zero_var_cols <- apply(numeric_data, 2, function(x) sd(x, na.rm = TRUE) == 0)
+    numeric_data <- numeric_data[, !zero_var_cols, drop = FALSE]
+  }
+  
+  # Update metadata to match filtered rows
+  md <- pd$metadata[good_rows, , drop = FALSE]
+  
+  # Add informative message about removed rows
+  n_removed <- sum(!good_rows)
+  if (n_removed > 0) {
+    message(sprintf("Removed %d rows containing NA values", n_removed))
+  }
+  
+  list(metadata = md, numeric_data = numeric_data)
+})
+```
+
+## Variable Annotations
+
+```{r variable-annotations-def}
+extract_annotations <- function(var_names) {
+  tibble(
+    variable = var_names,
+    method = case_when(
+      str_detect(var_names, "PC") ~ "PC",
+      str_detect(var_names, "pc") ~ "PC",
+      str_detect(var_names, "restim") ~ "Ex Vivo Restimulation",
+      str_detect(var_names, "homo") ~ "Homogenate",
+      str_detect(var_names, "flow") ~ "Flow Cytometry",
+      str_detect(var_names, "score") ~ "Clinical Score",
+      TRUE ~ "other"
+    ),
+    organ = case_when(
+      str_detect(var_names, "scdLN") ~ "scdLN",
+      str_detect(var_names, "SC") ~ "SC",
+      str_detect(var_names, "spleen") ~ "Spleen",
+      TRUE ~ NA_character_
+    )
+  )
+}
+```
+
+## Color Palettes & Helper Constants
+
+```{r palettes-helpers}
+treatment_colors <- c(
+  "PBS" = "#A9A7A9",
+  "FTY 720" = "#F2963A",
+  "SA IL-33" = "#E74790"
+)
+
+treatment_shapes <- c(
+  "PBS" = 16,
+  "FTY 720" = 15,
+  "SA IL-33" = 17
+)
+
+# First palette
+organ_palette <- c(
+  "scdLN"  = "#3C5941",
+  "Spleen" = "#C7522B",
+  "SC"     = "#94A37D",
+  "PC"  = "#222222"
+)
+
+# Second palette
+method_palette <- c(
+  "Flow Cytometry"        = "#A36A2C",
+  "Clinical Score"            = "#93B9A7",
+  "Homogenate"            = "#ECEAC2",
+  "Ex Vivo Restimulation" = "#2586A0",
+  "PC"                 = "#222222"
+)
+
+
+# A pool of distinct colors for custom annotations
+distinct_colors <- c(
+    "#E41A1C", "#377EB8", "#4DAF4A", "#984EA3", "#FF7F00", "#FFFF33", 
+    "#A65628", "#F781BF", "#999999", "#66C2A5", "#FC8D62", "#8DA0CB",
+    "#FF0000", "#00FF00", "#0000FF", "#FF00FF", "#FFFF00", "#00FFFF",
+    "#FF8000", "#FF0080", "#80FF00", "#00FF80", "#0080FF", "#8000FF",
+    "#CD5C5C", "#6B8E23", "#4682B4", "#9370DB", "#DAA520", "#48D1CC",
+    "#C71585", "#8FBC8F", "#DEB887", "#BA55D3", "#B8860B", "#4B0082",
+    "#FFB6C1", "#98FB98", "#87CEFA", "#DDA0DD", "#F0E68C", "#E0FFFF",
+    "#FFA07A", "#7FFFD4", "#F0FFF0", "#FFE4E1", "#E6E6FA", "#FFDAB9",
+    "#800000", "#008000", "#000080", "#800080", "#808000", "#008080",
+    "#B22222", "#228B22", "#483D8B", "#8B008B", "#008B8B", "#BDB76B",
+    "#FF1493", "#32CD32", "#1E90FF", "#FF69B4", "#FFA500", "#40E0D0",
+    "#9932CC", "#87CEEB", "#BDB76B", "#20B2AA"
+)
+
+corr_color_ramp <- c("#798233","#F8FCE3","#D66981")
+mi_color_grad <- c("#ececec","#4E1EAF")
+
+heatmap_color_ramp <- colorRamp2(c(-2, 0, 2), corr_color_ramp)
+corr_color_ramp    <- colorRamp2(c(-1, 0, 1), corr_color_ramp)
+
+corr_method <- "spearman"
+```
+
+## Defining Helper Functions
+
+### Create Heatmap Functions
+
+```{r clean name heatmap}
+# Function to clean variable names while preserving information for annotations
+clean_var_names <- function(var_names) {
+  # Create a mapping of original names to cleaned names
+  name_mapping <- tibble(
+    original = var_names,
+    cleaned = var_names %>%
+      # Remove organ indicators - match at start, after underscore, and handle following space or underscore
+      str_remove("^scdLN(?=\\s|_|$)") %>%
+      str_remove("(?:^|_)scdLN(?=\\s|_|$)") %>%
+      str_remove("^SC(?=\\s|_|$)") %>%
+      str_remove("(?:^|_)SC(?=\\s|_|$)") %>%
+      str_remove("^spleen(?=\\s|_|$)") %>%
+      str_remove("(?:^|_)spleen(?=\\s|_|$)") %>%
+      # Remove method indicators
+      str_remove("_flow(?=_|$)") %>%
+      str_remove("_homo(?=_|$)") %>%
+      str_remove("_restim(?=_|$)") %>%
+      str_remove("_score(?=_|$)") %>%
+      # Remove any remaining trailing underscores
+      str_remove("_$") %>%
+      # Replace remaining underscores with spaces for readability
+      str_replace_all("_", " ")
+  )
+  
+  # Create a named vector for easy mapping
+  setNames(name_mapping$cleaned, name_mapping$original)
+}
+
+# Modified heatmap creation function with clean names
+create_heatmap_splits_clean <- function(numeric_data,
+                                      metadata,
+                                      var_annotations,
+                                      title) {
+  # Create name mapping
+  clean_names <- clean_var_names(colnames(numeric_data))
+  
+  # Create column annotation
+  col_va <- columnAnnotation(
+    treatment = metadata$treatment,
+    col = list(treatment = treatment_colors)
+  )
+  
+  # Process variable annotations
+  var_names <- colnames(numeric_data)
+  var_annot <- var_annotations %>%
+    filter(variable %in% var_names) %>%
+    tidyr::complete(variable = var_names,
+             fill = list(method = "other", subset = "other")) %>%
+    arrange(match(variable, var_names))
+  
+  # Create row annotation
+  row_ha <- rowAnnotation(
+    Method = var_annot$method,
+    Organ = var_annot$organ,
+    col = list(
+      Method = method_palette,
+      Organ = organ_palette
+    )
+  )
+  
+  # Create the heatmap with clean names
+  Heatmap(
+    as.matrix(t(numeric_data)),
+    name = "z-score",
+    col = heatmap_color_ramp,
+    top_annotation = col_va,
+    right_annotation = row_ha,
+    show_row_names = TRUE,
+    show_column_names = TRUE,
+    row_labels = clean_names[rownames(t(numeric_data))],
+    cluster_row_slices = FALSE,
+    cluster_column_slices = FALSE,
+    column_split = paste0(metadata$treatment),
+    row_split = paste0(var_annot$method, " ", var_annot$organ),
+    column_dend_reorder = TRUE,
+    row_dend_reorder = FALSE,
+    column_names_max_height = unit(15, "cm"),
+    row_names_max_width = unit(30, "cm"),
+    row_title = title,
+    heatmap_legend_param = list(legend_height = unit(4, "cm"))
+  )
+}
+```
+
+
+```{r save-heatmap-svg, include=FALSE}
+save_heatmap_svg <- function(heatmap_obj, filename, width = 10, height = 8) {
+  # Open an SVG device using svglite
+  svglite::svglite(filename, width = width, height = height)
+  # Redraw the heatmap on the SVG device.
+  # (Make sure to use the same draw parameters as for the PNG.)
+  draw(heatmap_obj, merge_legend = TRUE, heatmap_legend_side = "right")
+  dev.off()  # close the SVG device
+  message("Saved heatmap SVG to: ", filename)
+}
+```
+
+## Sheet-by-Sheet Analysis
+
+```{r sheetwise-analysis, results='asis', fig.width=10, fig.height=8, warning=FALSE}
+for (nm in names(processed_data_clean)) {
+  
+  cat("\n\n# Analysis:", nm, "\n\n")
+  
+  meta <- processed_data_clean[[nm]]$metadata
+  num  <- processed_data_clean[[nm]]$numeric_data
+  
+  if (ncol(num) < 1) {
+    cat("No numeric columns left after filtering/cleaning; skipping.\n")
+    next
+  }
+  
+  # --- Compute PCA and augment the numeric data with PC scores ---
+  if (ncol(num) >= 2 && nrow(num) >= 2) {
+    pca_res <- prcomp(num, center = FALSE, scale. = FALSE)
+    n_pcs <- min(2, ncol(pca_res$x))
+    pc_scores <- as.data.frame(pca_res$x[, seq_len(n_pcs), drop = FALSE])
+    colnames(pc_scores) <- paste0("PC", seq_len(n_pcs))
+  
+ # Combine metadata with PC scores
+  df_pca_output <- cbind(meta, pc_scores)
+  
+  # Export to outputs folder
+  output_path <- file.path(output_dir, paste0(sanitize_sheet_name(nm), "_PCvalues.csv"))
+  readr::write_csv(df_pca_output, output_path)
+  message("Exported PC values with metadata for sheet '", nm, "' to ", output_path)
+  
+    # Append the PC scores as additional columns so they become extra rows when transposed
+    num_aug <- cbind(num, pc_scores)
+  } else {
+    num_aug <- num
+  }
+  
+  # Prepare variable annotations for the augmented data (which now includes PC columns)
+  var_annotations <- extract_annotations(colnames(num_aug))
+  
+  # --- Draw Split Heatmap (which now shows PCA values) ---
+  cat("\n\n### Split Heatmap (with PCA values)\n")
+  hm_split <- create_heatmap_splits_clean(num_aug, meta, var_annotations, paste("Sheet (Split):", nm))
+  
+  # (a) Draw the heatmap for the HTML output (PNG)
+  draw(hm_split,
+       merge_legend = TRUE,
+       heatmap_legend_side = "right")
+  
+  # (b) Also save the heatmap as an SVG file
+  svg_filename <- file.path(output_dir,
+                            paste0(sanitize_sheet_name(nm), "_heatmap_split.svg"))
+  save_heatmap_svg(hm_split, svg_filename, width = 10, height = 8)
+  
+  # --- PCA Analysis Plots ---
+  cat("\n\n## PCA Analysis\n")
+  if (ncol(num) >= 2 && nrow(num) >= 2) {
+    df_scores <- data.frame(meta, pca_res$x)
+    
+     # (a) PCA Plot (PC1 vs PC2)
+    if (ncol(pca_res$x) >= 2) {
+      # Calculate variance percentages
+      var_explained <- (pca_res$sdev^2 / sum(pca_res$sdev^2)) * 100
+      
+      p <- ggplot(df_scores, aes(x = PC1, y = PC2, color = treatment, shape = treatment)) +
+        geom_point(size = 5) +
+        theme_minimal() +
+        scale_color_manual(values = treatment_colors) +
+        scale_shape_manual(values = treatment_shapes) + 
+        labs(title = paste("PCA of", nm),
+             x = sprintf("PC1 (%.1f%%)", var_explained[1]),
+             y = sprintf("PC2 (%.1f%%)", var_explained[2]))
+      print(p)
+    } else {
+      cat("Only 1 PC found; skipping 2D PCA plot.\n")
+    }
+  }
+  
+  cat("\n---\n")
+}
+```
+

@@ -1,0 +1,31 @@
+column_names
+experiment
+mouse_id
+treatment
+sample
+scdLN_flow_KLRG1+ GATA3+ Thy1.2+ Lineage- (% of CD45+) 
+scdLN_flow_CD25+ KLRG1+ GATA3+ Thy1.2+ Lineage- (% of CD45+) 
+scdLN_flow_CD69+ KLRG1+ GATA3+ Thy1.2+ Lineage- (% of CD45+) 
+scdLN_flow_ICOS+ KLRG1+ GATA3+ Thy1.2+ Lineage- (% of CD45+) 
+scdLN_flow_FoxP3+ CD25+ (% of CD4+ CD3+ CD45+) 
+scdLN_flow_CTLA-4+ (% of FoxP3+ CD25+ CD4+ CD3+ CD45+)
+scdLN_flow_PD-1+ (% of FoxP3+ CD25+ CD4+ CD3+ CD45+)
+scdLN_flow_ST2+ (% of FoxP3+ CD25+ CD4+ CD3+ CD45+)
+scdLN_flow_GATA3+ FoxP3- (% of CD4+ CD3+ CD45+) 
+scdLN_flow_RORγt+ FoxP3- (% of CD4+ CD3+ CD45+) 
+scdLN_flow_CTLA-4+ (% of RORγt+ FoxP3- CD4+ CD3+ CD45+) 
+scdLN_flow_PD-1+ (% of RORγt+ FoxP3- CD4+ CD3+ CD45+) 
+scdLN_flow_Arg-1+ (% of CD11b+ F4/80+ CD45+) 
+scdLN_flow_CD86+ (% of CD11b+ F4/80+ CD45+) 
+scdLN_flow_PD-L1+ (% of CD11b+ F4/80+ CD45+) 
+spleen_flow_KLRG1+ GATA3+ Thy1.2+ Lineage- (% of CD45+) 
+spleen_flow_CD25+ KLRG1+ GATA3+ Thy1.2+ Lineage- (% of CD45+) 
+spleen_flow_CD69+ KLRG1+ GATA3+ Thy1.2+ Lineage- (% of CD45+) 
+spleen_flow_ICOS+ KLRG1+ GATA3+ Thy1.2+ Lineage- (% of CD45+) 
+spleen_flow_FoxP3+ CD25+ (% of CD4+ CD3+ CD45+) 
+spleen_flow_CTLA-4+ (% of FoxP3+ CD25+ CD4+ CD3+ CD45+)
+spleen_flow_PD-1+ (% of FoxP3+ CD25+ CD4+ CD3+ CD45+)
+spleen_flow_ST2+ (% of FoxP3+ CD25+ CD4+ CD3+ CD45+)
+spleen_flow_GATA3+ FoxP3- (% of CD4+ CD3+ CD45+) 
+spleen_flow_RORγt+ FoxP3- (% of CD4+ CD3+ CD45+) 
+spleen_flow_PD-1+ (% of RORγt+ FoxP3- CD4+ CD3+ CD45+) 
